@@ -1,0 +1,22 @@
+<div class="space-y-4">
+    {{if .}}
+        {{range $index, $highlight := .}}
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition duration-300">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="inline-block px-3 py-1 text-sm font-semibold rounded-full {{if eq .SourceType "book"}}bg-purple-100 text-purple-800{{else}}bg-orange-100 text-orange-800{{end}}">
+                        {{if eq .SourceType "book"}}📚{{else}}🎙️{{end}} {{.SourceType}}
+                    </span>
+                    <span class="text-gray-700 font-medium">{{.Source}}</span>
+                </div>
+                <span class="text-gray-400 text-sm">#{{.ID}}</span>
+            </div>
+            <p class="text-gray-800 text-lg leading-relaxed">{{.Content}}</p>
+        </div>
+        {{end}}
+    {{else}}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <p class="text-gray-600 text-lg">No highlights found. Add some from the admin panel!</p>
+        </div>
+    {{end}}
+</div>

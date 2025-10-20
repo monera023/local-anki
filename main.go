@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
 	"highlights-anki/internal/database"
 	"highlights-anki/internal/handlers"
@@ -28,29 +27,8 @@ type Source struct {
 	Type string
 }
 
-var templatesFS embed.FS
-
 var db *sql.DB
 var tmpl *template.Template
-
-func initDb() error {
-	var err error
-	db, err = sql.Open("sqlite3", "./highlights.db")
-	if err != nil {
-		return err
-	}
-
-	createTableQuery := `
-	CREATE TABLE IF NOT EXISTS highlights (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		source TEXT,
-		source_type TEXT,
-		content TEXT
-	);
-	`
-	_, err = db.Exec(createTableQuery)
-	return err
-}
 
 // responseWriter wraps http.ResponseWriter to capture status code
 type responseWriter struct {
@@ -97,6 +75,7 @@ func main() {
 	h := handlers.NewHandlers(db)
 
 	http.HandleFunc("/admin/upload", loggingMiddleware(h.AddHighlights))
+	http.HandleFunc("/random", loggingMiddleware(h.GetRandomHighlights))
 
 	// if err := initDb(); err != nil {
 	// 	log.Fatal(err)
@@ -112,7 +91,7 @@ func main() {
 	}
 
 	http.HandleFunc("/", loggingMiddleware(homeHandler))
-	http.HandleFunc("/random", loggingMiddleware(randomHighlightsHandler))
+	// http.HandleFunc("/random", loggingMiddleware(randomHighlightsHandler))
 	http.HandleFunc("/sources", loggingMiddleware(sourcesHandler))
 	http.HandleFunc("/source/", loggingMiddleware(sourceHighlightsHandler))
 	http.HandleFunc("/admin", loggingMiddleware(adminHandler))

@@ -4,17 +4,45 @@ import (
 	"fmt"
 	"highlights-anki/internal/database"
 	"highlights-anki/internal/models"
+	"html/template"
 	"io"
 	"net/http"
 	"strings"
 )
 
 type Handlers struct {
-	DB *database.Db
+	DB   *database.Db
+	tmpl *template.Template
 }
 
 func NewHandlers(db *database.Db) *Handlers {
-	return &Handlers{DB: db}
+	tmpl, err := template.ParseGlob("templates/*.html")
+
+	// Debug: List all parsed templates
+	// for _, t := range tmpl.Templates() {
+	// 	fmt.Println("Found template:", t.Name())
+	// }
+	if err != nil {
+		panic(err)
+	}
+	return &Handlers{DB: db, tmpl: tmpl}
+}
+
+func (h *Handlers) GetRandomHighlights(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Fetching random highlights...")
+	randomHighlights, err := h.DB.GetRandomHighlights(10)
+	if err != nil {
+		http.Error(w, "Failed to fetch random highlights", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("Random highlights fetched:", len(randomHighlights))
+
+	err = h.tmpl.ExecuteTemplate(w, "highlights.html", randomHighlights)
+	if err != nil {
+		fmt.Println("Error executing template:", err)
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
@@ -32,28 +60,37 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 
 	sourceName := r.FormValue("source_name")
 	sourceType := r.FormValue("source_type")
+	highlightsText := r.FormValue("highlights_text")
 
 	if sourceName == "" || sourceType == "" {
 		http.Error(w, "Source name and type are required", http.StatusBadRequest)
 		return
 	}
 
-	file, _, err := r.FormFile("highlights_file")
+	var lines []string
 
-	if err != nil {
-		http.Error(w, "Failed to read file", http.StatusBadRequest)
-		return
+	if highlightsText != "" {
+		fmt.Println("Processing highlights from text area")
+		lines = strings.Split(highlightsText, "\n")
+	} else {
+		fmt.Println("Processing highlights from uploaded file")
+		file, _, err := r.FormFile("highlights_file")
+
+		if err != nil {
+			http.Error(w, "Failed to read file", http.StatusBadRequest)
+			return
+		}
+
+		defer file.Close()
+
+		content, err := io.ReadAll(file)
+		if err != nil {
+			http.Error(w, "Failed to read file content", http.StatusInternalServerError)
+			return
+		}
+
+		lines = strings.Split(string(content), "\n")
 	}
-
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		http.Error(w, "Failed to read file content", http.StatusInternalServerError)
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
 
 	var highlights []models.Highlight
 
@@ -69,6 +106,7 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 		}
 		highlights = append(highlights, highlight)
 	}
+
 	// Insert highlights into the database
 	count, err := h.DB.InsertHighlights(highlights)
 	if err != nil {

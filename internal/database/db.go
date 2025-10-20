@@ -75,3 +75,27 @@ func (db *Db) InsertHighlights(highlights []models.Highlight) (count int, err er
 
 	return count, nil
 }
+
+func (db *Db) GetRandomHighlights(limit int) ([]models.Highlight, error) {
+	rows, err := db.Query("SELECT source, source_type, content FROM highlights ORDER BY RANDOM() LIMIT ?", limit)
+	if err != nil {
+		println("Error querying highlights:", err)
+		return nil, err
+	}
+	defer rows.Close()
+	var randomHighlights []models.Highlight
+
+	for rows.Next() {
+		println("Fetching a random highlight")
+		var highlight models.Highlight
+		err := rows.Scan(&highlight.Source, &highlight.SourceType, &highlight.Content)
+		if err != nil {
+			println("Error scanning highlight:", err)
+			return nil, err
+		}
+
+		randomHighlights = append(randomHighlights, highlight)
+	}
+	println("Total random highlights fetched:", len(randomHighlights))
+	return randomHighlights, nil
+}

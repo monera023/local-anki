@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"highlights-anki/internal/database"
+	"highlights-anki/internal/handlers"
 	"io"
 	"log"
 	"net/http"
@@ -85,12 +87,22 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-
-	if err := initDb(); err != nil {
-		log.Fatal(err)
+	db, db_err := database.InitDb("./highlights.db")
+	if db_err != nil {
+		log.Fatal("Failed to initialize database:", db_err)
 	}
 
 	defer db.Close()
+
+	h := handlers.NewHandlers(db)
+
+	http.HandleFunc("/admin/upload", loggingMiddleware(h.AddHighlights))
+
+	// if err := initDb(); err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// defer db.Close()
 
 	// Load templates from files
 	var err error
@@ -104,7 +116,7 @@ func main() {
 	http.HandleFunc("/sources", loggingMiddleware(sourcesHandler))
 	http.HandleFunc("/source/", loggingMiddleware(sourceHighlightsHandler))
 	http.HandleFunc("/admin", loggingMiddleware(adminHandler))
-	http.HandleFunc("/admin/upload", loggingMiddleware(uploadHandler))
+	// http.HandleFunc("/admin/upload", loggingMiddleware(uploadHandler))
 
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

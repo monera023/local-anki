@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"highlights-anki/internal"
 	"highlights-anki/internal/database"
 	"highlights-anki/internal/models"
 	"html/template"
@@ -69,7 +70,9 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 
 	var lines []string
 
-	if highlightsText != "" {
+	fmt.Println("Len of highlights text area:", len(strings.TrimSpace(highlightsText)))
+
+	if strings.TrimSpace(highlightsText) != "" {
 		fmt.Println("Processing highlights from text area")
 		lines = strings.Split(highlightsText, "\n")
 	} else {
@@ -111,6 +114,16 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 	count, err := h.DB.InsertHighlights(highlights)
 	if err != nil {
 		http.Error(w, "Failed to insert highlights into database", http.StatusInternalServerError)
+		return
+	}
+
+	// Write highlights to a file for backup
+	backupFilePath := fmt.Sprintf("backups/%s_%s_highlights.txt", sourceName, sourceType)
+	err = internal.WriteHighlightsToFile(highlights, backupFilePath)
+
+	if err != nil {
+		fmt.Println("Error writing highlights to backup file:", err)
+		http.Error(w, "Failed to write highlights to backup file", http.StatusInternalServerError)
 		return
 	}
 

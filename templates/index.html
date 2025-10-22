@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Highlights - Personal Anki</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex space-x-7">
+                    <div>
+                        <a href="/" class="flex items-center">
+                            <span class="font-semibold text-gray-800 text-2xl">📚 My Highlights</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="/" class="py-2 px-4 font-medium text-gray-700 hover:text-blue-600 transition duration-300">Home</a>
+                    <a href="/admin" class="py-2 px-4 font-medium text-gray-700 hover:text-blue-600 transition duration-300">Admin</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">Welcome to Your Personal Anki System</h1>
+            <p class="text-gray-600 text-lg mb-6">
+                Review your highlights and notes from books and podcasts. Keep your knowledge fresh!
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-6 mt-8">
+                <div class="border-2 border-blue-200 rounded-lg p-6 hover:border-blue-400 transition duration-300">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🎲 Random Review</h2>
+                    <p class="text-gray-600 mb-4">Get 10 random highlights to review and refresh your memory.</p>
+                    <button 
+                        hx-get="/random" 
+                        hx-target="#content" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">
+                        Start Random Review
+                    </button>
+                </div>
+
+                <div class="border-2 border-green-200 rounded-lg p-6 hover:border-green-400 transition duration-300">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">📖 Browse by Source</h2>
+                    <p class="text-gray-600 mb-4">Review highlights from a specific book or podcast.</p>
+                    <button 
+                        hx-get="/sources" 
+                        hx-target="#content" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">
+                        Browse Sources
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="content" class="mt-8">
+            <!-- Dynamic content loads here -->
+        </div>
+    </div>
+
+    <footer class="bg-white shadow-lg mt-16">
+        <div class="max-w-6xl mx-auto px-4 py-6">
+            <p class="text-center text-gray-600">Keep learning, keep growing 🌱</p>
+        </div>
+    </footer>
+</body>
+</html>

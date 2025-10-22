@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - My Highlights</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex space-x-7">
+                    <div>
+                        <a href="/" class="flex items-center">
+                            <span class="font-semibold text-gray-800 text-2xl">📚 My Highlights</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="/" class="py-2 px-4 font-medium text-gray-700 hover:text-blue-600 transition duration-300">Home</a>
+                    <a href="/admin" class="py-2 px-4 font-medium text-blue-600 border-b-2 border-blue-600">Admin</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
+            <p class="text-gray-600 mb-8">Upload highlights from your books and podcasts</p>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                <h3 class="font-semibold text-gray-800 mb-2">📝 File Format Instructions:</h3>
+                <ul class="list-disc list-inside text-gray-700 space-y-1 ml-2">
+                    <li>Create a plain text (.txt) file with your highlights</li>
+                    <li>Put each highlight on its own line</li>
+                    <li>Empty lines are ignored</li>
+                    <li>Example format:</li>
+                </ul>
+                <div class="bg-white rounded mt-3 p-4 font-mono text-sm text-gray-700 border border-gray-300">
+                    <div>First highlight or note goes here.</div>
+                    <div>Second highlight with important insight.</div>
+                    <div>Third highlight about key concept.</div>
+                </div>
+            </div>
+
+            <form 
+                hx-post="/admin/upload" 
+                hx-target="#upload-result"
+                hx-encoding="multipart/form-data"
+                class="space-y-6">
+
+                <div>
+                    <label for="source_name" class="block text-gray-700 font-semibold mb-2">
+                        Source Name (Book or Podcast Title)
+                    </label>
+                    <input 
+                        type="text" 
+                        id="source_name" 
+                        name="source_name" 
+                        required
+                        placeholder="e.g., Atomic Habits, The Tim Ferriss Show"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label for="source_type" class="block text-gray-700 font-semibold mb-2">
+                        Source Type
+                    </label>
+                    <select 
+                        id="source_type" 
+                        name="source_type" 
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select type...</option>
+                        <option value="book">📚 Book</option>
+                        <option value="podcast">🎙️ Podcast</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="highlights_file" class="block text-gray-700 font-semibold mb-2">
+                        Upload Text File
+                    </label>
+                    <input 
+                        type="file" 
+                        id="highlights_file" 
+                        name="highlights_file" 
+                        accept=".txt"
+                        not-required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+
+                <div>
+                    <label for="highlights_text" class="block text-gray-700 font-semibold mb-2">
+                        Or Paste Highlights Here (one per line)
+                    </label>
+                    <textarea
+                        id="highlights_text" 
+                        name="highlights_text" 
+                        rows="6"
+                        placeholder="Paste your highlights here, one per line..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none">
+                    </textarea>
+                    
+                </div>
+
+                <button 
+                    type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+                    Upload Highlights
+                </button>
+            </form>
+
+            <div id="upload-result" class="mt-6">
+                <!-- Upload result will appear here -->
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="/" class="text-blue-600 hover:text-blue-800 font-medium">
+                ← Back to Home
+            </a>
+        </div>
+    </div>
+</body>
+</html>

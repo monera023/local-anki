@@ -1,0 +1,35 @@
+<div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">Select a Source</h2>
+    
+    {{if .}}
+        <div class="grid md:grid-cols-2 gap-4">
+            {{range .}}
+            <button 
+                hx-get="/source/{{.Name}}" 
+                hx-target="#content"
+                class="text-left p-4 border-2 border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition duration-300">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">{{if eq .Type "book"}}📚{{else}}🎙️{{end}}</span>
+                    <div>
+                        <p class="font-semibold text-gray-800">{{.Name}}</p>
+                        <p class="text-sm text-gray-500 capitalize">{{.Type}}</p>
+                    </div>
+                </div>
+            </button>
+            {{end}}
+        </div>
+    {{else}}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <p class="text-gray-600 text-lg">No sources found. Add some from the admin panel!</p>
+        </div>
+    {{end}}
+    
+    <div class="mt-6 pt-6 border-t border-gray-200">
+        <button 
+            hx-get="/random" 
+            hx-target="#content"
+            class="text-blue-600 hover:text-blue-800 font-medium">
+            ← Back to Random Review
+        </button>
+    </div>
+</div>

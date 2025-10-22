@@ -86,7 +86,6 @@ func (db *Db) GetRandomHighlights(limit int) ([]models.Highlight, error) {
 	var randomHighlights []models.Highlight
 
 	for rows.Next() {
-		println("Fetching a random highlight")
 		var highlight models.Highlight
 		err := rows.Scan(&highlight.Source, &highlight.SourceType, &highlight.Content)
 		if err != nil {
@@ -96,6 +95,5 @@ func (db *Db) GetRandomHighlights(limit int) ([]models.Highlight, error) {
 
 		randomHighlights = append(randomHighlights, highlight)
 	}
-	println("Total random highlights fetched:", len(randomHighlights))
 	return randomHighlights, nil
 }

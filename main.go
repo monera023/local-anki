@@ -2,17 +2,15 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"highlights-anki/internal/database"
 	"highlights-anki/internal/handlers"
-	"io"
 	"log"
 	"net/http"
 	"strings"
 	"text/template"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type Highlight struct {
@@ -23,8 +21,9 @@ type Highlight struct {
 }
 
 type Source struct {
-	Name string
-	Type string
+	Name       string
+	Type       string
+	Identifier string
 }
 
 var db *sql.DB
@@ -65,17 +64,28 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	log.SetFlags(log.Lshortfile)
 	db, db_err := database.InitDb("./highlights.db")
 	if db_err != nil {
 		log.Fatal("Failed to initialize database:", db_err)
 	}
 
-	defer db.Close()
+	search_db, search_err := database.InitSearch("./highlights.db")
+	if search_err != nil {
+		log.Fatal("Failed to initialize search database:", search_err)
+	}
 
-	h := handlers.NewHandlers(db)
+	defer db.Close()
+	defer search_db.Close()
+
+	h := handlers.NewHandlers(db, search_db)
 
 	http.HandleFunc("/admin/upload", loggingMiddleware(h.AddHighlights))
 	http.HandleFunc("/random", loggingMiddleware(h.GetRandomHighlights))
+	http.HandleFunc("/sources", loggingMiddleware(h.SourcesHandler))
+	http.HandleFunc("/source/", loggingMiddleware(h.SourceHighlightsHandler))
+	http.HandleFunc("/search", loggingMiddleware(h.SearchHandler))
+	http.HandleFunc("/searchResults", loggingMiddleware(h.SearchResultsHandler))
 
 	// if err := initDb(); err != nil {
 	// 	log.Fatal(err)
@@ -91,11 +101,8 @@ func main() {
 	}
 
 	http.HandleFunc("/", loggingMiddleware(homeHandler))
-	// http.HandleFunc("/random", loggingMiddleware(randomHighlightsHandler))
-	http.HandleFunc("/sources", loggingMiddleware(sourcesHandler))
-	http.HandleFunc("/source/", loggingMiddleware(sourceHighlightsHandler))
+	// http.HandleFunc("/source/", loggingMiddleware(sourceHighlightsHandler))
 	http.HandleFunc("/admin", loggingMiddleware(adminHandler))
-	// http.HandleFunc("/admin/upload", loggingMiddleware(uploadHandler))
 
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -103,59 +110,6 @@ func main() {
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "index.html", nil)
-}
-
-func randomHighlightsHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query(`
-		SELECT id, source, source_type, content 
-		FROM highlights 
-		ORDER BY RANDOM() 
-		LIMIT 10
-	`)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var highlights []Highlight
-	for rows.Next() {
-		var h Highlight
-		err := rows.Scan(&h.ID, &h.Source, &h.SourceType, &h.Content)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		highlights = append(highlights, h)
-	}
-
-	tmpl.ExecuteTemplate(w, "highlights.html", highlights)
-}
-
-func sourcesHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query(`
-		SELECT DISTINCT source, source_type 
-		FROM highlights 
-		ORDER BY source
-	`)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var sources []Source
-	for rows.Next() {
-		var s Source
-		err := rows.Scan(&s.Name, &s.Type)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		sources = append(sources, s)
-	}
-
-	tmpl.ExecuteTemplate(w, "sources.html", sources)
 }
 
 func sourceHighlightsHandler(w http.ResponseWriter, r *http.Request) {
@@ -193,91 +147,4 @@ func sourceHighlightsHandler(w http.ResponseWriter, r *http.Request) {
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "admin.html", nil)
-}
-
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	err := r.ParseMultipartForm(10 << 20) // 10 MB max
-	if err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	sourceName := r.FormValue("source_name")
-	sourceType := r.FormValue("source_type")
-
-	if sourceName == "" || sourceType == "" {
-		http.Error(w, "Source name and type are required", http.StatusBadRequest)
-		return
-	}
-
-	file, _, err := r.FormFile("highlights_file")
-	if err != nil {
-		http.Error(w, "Failed to read file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		http.Error(w, "Failed to read file content", http.StatusInternalServerError)
-		return
-	}
-
-	// Split content by newlines - each line is a separate highlight
-	lines := strings.Split(string(content), "\n")
-
-	tx, err := db.Begin()
-	if err != nil {
-		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
-		return
-	}
-
-	stmt, err := tx.Prepare("INSERT INTO highlights (source, source_type, content) VALUES (?, ?, ?)")
-	if err != nil {
-		tx.Rollback()
-		http.Error(w, "Failed to prepare statement", http.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	count := 0
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Skip empty lines
-		if line == "" {
-			continue
-		}
-
-		// Each non-empty line is a highlight
-		_, err = stmt.Exec(sourceName, sourceType, line)
-		if err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to insert highlight", http.StatusInternalServerError)
-			return
-		}
-		count++
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
-		return
-	}
-
-	response := fmt.Sprintf(`
-		<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-			<strong class="font-bold">Success!</strong>
-			<span class="block sm:inline">Uploaded %d highlights for "%s"</span>
-		</div>
-	`, count, sourceName)
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(response))
 }

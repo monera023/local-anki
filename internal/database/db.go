@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"highlights-anki/internal/models"
+	"log"
 )
 
 type Db struct {
@@ -11,7 +12,7 @@ type Db struct {
 
 func InitDb(dbUri string) (*Db, error) {
 	println("Initializing database at:", dbUri)
-	db, err := sql.Open("sqlite3", "./highlights.db")
+	db, err := sql.Open("sqlite", "./highlights.db")
 
 	if err != nil {
 		println("Error opening database:", err)
@@ -79,7 +80,7 @@ func (db *Db) InsertHighlights(highlights []models.Highlight) (count int, err er
 func (db *Db) GetRandomHighlights(limit int) ([]models.Highlight, error) {
 	rows, err := db.Query("SELECT source, source_type, content FROM highlights ORDER BY RANDOM() LIMIT ?", limit)
 	if err != nil {
-		println("Error querying highlights:", err)
+		log.Println("[db.go] Error querying highlights:", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -89,11 +90,59 @@ func (db *Db) GetRandomHighlights(limit int) ([]models.Highlight, error) {
 		var highlight models.Highlight
 		err := rows.Scan(&highlight.Source, &highlight.SourceType, &highlight.Content)
 		if err != nil {
-			println("Error scanning highlight:", err)
+			log.Println("[db.go] Error scanning highlight:", err)
 			return nil, err
 		}
 
 		randomHighlights = append(randomHighlights, highlight)
 	}
 	return randomHighlights, nil
+}
+
+func (db *Db) GetSources() ([]models.Source, error) {
+	rows, err := db.Query("SELECT DISTINCT source, source_type FROM highlights")
+	if err != nil {
+		log.Println("[db.go] Error querying sources:", err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var sources []models.Source
+
+	for rows.Next() {
+		var source models.Source
+		err := rows.Scan(&source.Name, &source.Type)
+		if err != nil {
+			log.Println("[db.go] Error scanning source:", err)
+			return nil, err
+		}
+		sources = append(sources, source)
+	}
+	return sources, nil
+
+}
+
+func (db *Db) GetSourceHighlights(source string) ([]models.Highlight, error) {
+	rows, err := db.Query("SELECT source, source_type, content FROM highlights WHERE source = ?", source)
+	if err != nil {
+		log.Fatalf("Error querying highlights for source %s: %v", source, err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var highlights []models.Highlight
+
+	for rows.Next() {
+		var highlight models.Highlight
+		err := rows.Scan(&highlight.Source, &highlight.SourceType, &highlight.Content)
+		if err != nil {
+			log.Fatal("Error scanning source highlights:", err)
+			return nil, err
+		}
+		highlights = append(highlights, highlight)
+	}
+	return highlights, nil
+
 }

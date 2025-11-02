@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"highlights-anki/internal/models"
 	"log"
+
+	_ "modernc.org/sqlite"
 )
 
 type Db struct {
@@ -12,15 +14,15 @@ type Db struct {
 
 func InitDb(dbUri string) (*Db, error) {
 	println("Initializing database at:", dbUri)
-	db, err := sql.Open("sqlite", "./highlights.db")
+	db, err := sql.Open("sqlite", dbUri)
 
 	if err != nil {
-		println("Error opening database:", err)
+		log.Fatalln("Error opening database:", err)
 		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
-		println("Error pinging database:", err)
+		log.Fatalln("Error pinging database:", err)
 		return nil, err
 	}
 
@@ -145,4 +147,17 @@ func (db *Db) GetSourceHighlights(source string) ([]models.Highlight, error) {
 	}
 	return highlights, nil
 
+}
+
+func (db *Db) FlushTable(table_name string) error {
+
+	_, err := db.Exec("DELETE FROM " + table_name)
+	if err != nil {
+		log.Fatal("Error flushing highlights table:", err)
+		return err
+	}
+
+	log.Println("Flushed table:", table_name)
+
+	return nil
 }

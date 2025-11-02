@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"highlights-anki/internal/models"
 	"log"
+
+	_ "modernc.org/sqlite"
 )
 
 type Search struct {

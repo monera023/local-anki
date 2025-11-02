@@ -48,3 +48,21 @@ func DecodeFromBase64(encoded string) (string, error) {
 
 	return string(decodedBytes), nil
 }
+
+func ParseSourceNameFromFileName(fileName string) string {
+	// Example: "Title_book_highlights.txt" -> "Title"
+	// Example : "Title_podcast_highlights.txt" -> "Title"
+	underscoreIndex := -1
+	for i := 0; i < len(fileName); i++ {
+		if fileName[i] == '_' {
+			underscoreIndex = i
+			break
+		}
+	}
+
+	if underscoreIndex == -1 {
+		return fileName // No underscore found, return the whole filename
+	}
+
+	return fileName[:underscoreIndex]
+}

@@ -7,16 +7,18 @@ import (
 	"highlights-anki/internal/models"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 )
 
 type Handlers struct {
-	DB   *database.Db
-	tmpl *template.Template
+	DB     *database.Db
+	tmpl   *template.Template
+	Search *database.Search
 }
 
-func NewHandlers(db *database.Db) *Handlers {
+func NewHandlers(db *database.Db, search *database.Search) *Handlers {
 	tmpl, err := template.ParseGlob("templates/*.html")
 
 	// Debug: List all parsed templates
@@ -26,21 +28,99 @@ func NewHandlers(db *database.Db) *Handlers {
 	if err != nil {
 		panic(err)
 	}
-	return &Handlers{DB: db, tmpl: tmpl}
+	return &Handlers{DB: db, tmpl: tmpl, Search: search}
 }
 
 func (h *Handlers) GetRandomHighlights(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Fetching random highlights...")
+	log.Println("Fetching random highlights...")
 	randomHighlights, err := h.DB.GetRandomHighlights(10)
 	if err != nil {
 		http.Error(w, "Failed to fetch random highlights", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("Random highlights fetched:", len(randomHighlights))
+	log.Println("Random highlights fetched:", len(randomHighlights))
 
 	err = h.tmpl.ExecuteTemplate(w, "highlights.html", randomHighlights)
 	if err != nil {
-		fmt.Println("Error executing template:", err)
+		log.Fatal("Error executing template:", err)
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handlers) SourcesHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Fetching sources...")
+	sources, err := h.DB.GetSources()
+
+	if err != nil {
+		log.Fatal("Error fetching sources: %v", err)
+		http.Error(w, "Failed to fetch sources", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.tmpl.ExecuteTemplate(w, "sources.html", sources)
+
+	if err != nil {
+		log.Fatal("Error executing template: %v", err)
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handlers) SourceHighlightsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[handler.go] SourceHighlightsHandler called")
+	sourceName := strings.TrimPrefix(r.URL.Path, "/source/")
+	if sourceName == "" {
+		http.Error(w, "Source Name not passed", http.StatusBadRequest)
+		return
+	}
+
+	highlights, err := h.DB.GetSourceHighlights(sourceName)
+	if err != nil {
+		log.Fatal("Error fetching source highlights: %v", err)
+		http.Error(w, "Failed to fetch source highlights", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.tmpl.ExecuteTemplate(w, "highlights.html", highlights)
+
+	if err != nil {
+		log.Fatal("Error executing template: %v", err)
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (h *Handlers) SearchHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("SearchHandler called")
+
+	err := h.tmpl.ExecuteTemplate(w, "search.html", nil)
+	if err != nil {
+		log.Fatal("Error executing template:", err)
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handlers) SearchResultsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("SearchResultsHandler called")
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+		return
+	}
+
+	results, err := h.Search.GetSearchResults(query, 5)
+	if err != nil {
+		log.Println("Error fetching search results:", err)
+		http.Error(w, "Failed to fetch search results", http.StatusInternalServerError)
+		return
+	}
+
+	err = h.tmpl.ExecuteTemplate(w, "search-results.html", results)
+	if err != nil {
+		log.Println("Error executing template:", err)
 		http.Error(w, "Failed to render template", http.StatusInternalServerError)
 		return
 	}
@@ -117,12 +197,21 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Insert highlights into the FTS table
+	log.Println("Inserting highlights into FTS table...")
+	err = h.Search.InsertToFTS(highlights, sourceName)
+	if err != nil {
+		http.Error(w, "Failed to insert highlights into search index", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Highlights successfully inserted into FTS table.")
+
 	// Write highlights to a file for backup
 	backupFilePath := fmt.Sprintf("backups/%s_%s_highlights.txt", sourceName, sourceType)
 	err = internal.WriteHighlightsToFile(highlights, backupFilePath)
 
 	if err != nil {
-		fmt.Println("Error writing highlights to backup file:", err)
+		log.Println("Error writing highlights to backup file:", err)
 		http.Error(w, "Failed to write highlights to backup file", http.StatusInternalServerError)
 		return
 	}

@@ -207,7 +207,7 @@ func (h *Handlers) AddHighlights(w http.ResponseWriter, r *http.Request) {
 	log.Println("Highlights successfully inserted into FTS table.")
 
 	// Write highlights to a file for backup
-	backupFilePath := fmt.Sprintf("backups/%s_%s_highlights.txt", sourceName, sourceType)
+	backupFilePath := fmt.Sprintf("backups/%s/%s_highlights.txt", sourceType, sourceName)
 	err = internal.WriteHighlightsToFile(highlights, backupFilePath)
 
 	if err != nil {
